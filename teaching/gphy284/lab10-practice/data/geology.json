@@ -1,0 +1,9 @@
+{
+  "splitId": 3,
+  "splitName": "Granodiorite",
+  "splitUnit": "Kgd",
+  "gapName": "Sixmile Creek Formation",
+  "gapUnit": "Tsc",
+  "credit": "Montana Bureau of Mines and Geology, 1:100,000 seamless geologic map, map-unit polygons. Clipped to the McCartney Mountains area. Polygons smaller than about 0.22 km\u00b2 were dropped, boundaries were simplified, and one polygon was left off so the editing exercise has an empty patch.",
+  "service": "https://mbmgmap.mtech.edu/server/rest/services/Geology/Geology100k_Seamless/MapServer/3"
+}

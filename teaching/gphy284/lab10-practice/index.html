@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data conversion practice | GPHY 284</title>
+<meta name="description" content="Browser practice for coordinate conversion, georeferencing, digitizing geology, and contour selection.">
+<link rel="stylesheet" href="css/lab.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<div class="wrap">
+<p class="crumb"><a href="../../../index.html#teaching">Teaching resources</a></p>
+<h1>Data conversion practice</h1>
+<p class="meta">GPHY 284 · four short exercises for the Lab 10 workflow. Nothing to install and no account.</p>
+<nav class="exnav" aria-label="Exercises">
+<a href="index.html" aria-current="page">Overview</a>
+<a href="dms.html">1 Decimal degrees</a>
+<a href="georeference.html">2 Georeference</a>
+<a href="editing.html">3 Edit</a>
+<a href="contours.html">4 Contours</a>
+</nav>
+</div>
+</header>
+<main id="main" class="wrap">
+<p>Each exercise takes a few minutes. They work on a phone or a laptop: tap, pinch, and drag. Nothing here is the graded Lab 10 answer key. The corners, control points, and contour values are for practice on a real map of the McCartney Mountains, Montana.</p>
+<div class="grid cards">
+<article class="card">
+<h2><a href="dms.html">1. Decimal degrees</a></h2>
+<p data-done="dms">Turn degrees, minutes, and seconds into decimal degrees. West longitudes are negative.</p>
+<p class="meta">About 5 minutes</p>
+</article>
+<article class="card">
+<h2><a href="georeference.html">2. Georeference a scanned map</a></h2>
+<p data-done="georef">Place control points on a historical USGS topographic map, fit a polynomial, and read the RMS error.</p>
+<p class="meta">About 8 minutes</p>
+</article>
+<article class="card">
+<h2><a href="editing.html">3. Split and auto-complete</a></h2>
+<p data-done="edit">Cut a geology polygon, add a new one that shares an edge, and fill its formation name.</p>
+<p class="meta">About 8 minutes</p>
+</article>
+<article class="card">
+<h2><a href="contours.html">4. Contours and SQL</a></h2>
+<p data-done="contours">Select index contours with a WHERE clause and calculate a Type field for symbology.</p>
+<p class="meta">About 8 minutes</p>
+</article>
+</div>
+<section class="note">
+<h2>What you need</h2>
+<p>A browser with an internet connection, so the USGS basemap tiles can load. The exercises themselves are files on this site. Pinch to zoom the maps. Buttons stay large enough to tap. On a phone, scroll if a map and its steps do not fit at once.</p>
+</section>
+<section class="note">
+<h2>Sources</h2>
+<ul>
+<li>Scanned map: U.S. Geological Survey Historical Topographic Map Collection, Nez Perce Hollow 1:24,000 quadrangle, Montana. Public domain. Cropped inside the neatline.</li>
+<li>Basemap tiles and the elevation model: U.S. Geological Survey, The National Map, 3DEP bare-earth DEM, about 10 m spacing.</li>
+<li>Geology: Montana Bureau of Mines and Geology 1:100,000 seamless geologic map, map-unit polygons, clipped and simplified.</li>
+</ul>
+<p class="meta">Each exercise repeats the credit for the data it uses.</p>
+</section>
+</main>
+<footer class="site wrap">GPHY 284 practice lab. Part of <a href="../../../index.html">Andrew K. Laskowski</a>’s teaching resources.</footer>
+<script src="js/store.js"></script>
+<script src="js/home.js"></script>
+</body>
+</html>

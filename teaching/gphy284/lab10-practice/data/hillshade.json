@@ -1,0 +1,12 @@
+{
+  "credit": "Hillshade from a USGS 3DEP bare-earth DEM (The National Map), about 10 m spacing, clipped to the McCartney Mountains. Azimuth 315\u00b0, altitude 45\u00b0, z-factor 1 on a 10 m UTM grid.",
+  "sourceUrl": "https://apps.nationalmap.gov/downloader/",
+  "service": "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer",
+  "west": -112.618,
+  "north": 45.562,
+  "east": -112.552,
+  "south": 45.5079533,
+  "minElev": 1789.1,
+  "maxElev": 2505.0,
+  "interval": 20
+}

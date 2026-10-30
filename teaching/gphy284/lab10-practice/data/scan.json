@@ -1,0 +1,12 @@
+{
+  "title": "USGS historical 1:24,000 topographic map, Nez Perce Hollow quadrangle, Montana",
+  "credit": "U.S. Geological Survey, Historical Topographic Map Collection. Public domain. Cropped inside the neatline and saved without a world file so it can be georeferenced by hand.",
+  "sourceUrl": "https://www.usgs.gov/programs/national-geospatial-program/historical-topographic-maps-preserving-the-past",
+  "downloadUrl": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/HistoricalTopo/GeoTIFF/MT/MT_Nez%20Perce%20Hollow_265723_1961_24000_geo.tif",
+  "west": -112.618,
+  "north": 45.562,
+  "east": -112.552,
+  "south": 45.5080038,
+  "width": 1600,
+  "height": 1309
+}

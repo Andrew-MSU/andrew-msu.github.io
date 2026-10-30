@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 · Contours and SQL | GPHY 284 practice</title>
+<link rel="stylesheet" href="css/lab.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<div class="wrap">
+<p class="crumb"><a href="index.html">Data conversion practice</a> · GPHY 284</p>
+<h1>4. Contours and SQL</h1>
+<nav class="exnav" aria-label="Exercises">
+<a href="index.html">Overview</a>
+<a href="dms.html">1 Decimal degrees</a>
+<a href="georeference.html">2 Georeference</a>
+<a href="editing.html">3 Edit</a>
+<a href="contours.html" aria-current="page">4 Contours</a>
+</nav>
+</div>
+</header>
+<main id="main" class="wrap">
+<section class="steps">
+<h2>Steps</h2>
+<ol>
+<li>The lines are 20 m contours from a USGS 3DEP DEM. Index contours are the elevations that divide evenly by 100.</li>
+<li>Select them with a WHERE clause. <span class="mono">MOD(Contour, 100) = 0</span> is the pattern. Comparisons, AND, OR, and parentheses work. Quote text with single quotes. Field names may be quoted with double quotes.</li>
+<li>With those rows selected, Calculate Field on Type and enter <span class="mono">index</span>. Index lines become thicker.</li>
+<li>Select the other contours, for example <span class="mono">MOD(Contour, 100) &lt;&gt; 0</span>, and set Type to <span class="mono">intermediate</span>.</li>
+</ol>
+</section>
+<div class="map" id="map" role="application" aria-label="Hillshade and contour lines of the McCartney Mountains"></div>
+<label class="field">Hillshade opacity
+<input id="shade" type="range" min="0" max="100" value="72">
+</label>
+<label class="field" for="sql">WHERE clause</label>
+<input id="sql" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="MOD(Contour, 100) = 0">
+<div class="row">
+<button type="button" id="select">Select</button>
+<button type="button" id="clear" class="secondary">Clear selection</button>
+<button type="button" id="example" class="secondary">Insert an example</button>
+</div>
+<p id="count" class="hint">Selected 0.</p>
+<div class="table-wrap">
+<table>
+<caption class="hint">Attribute table of the current selection.</caption>
+<thead><tr><th>ID</th><th>Contour</th><th>Type</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+<label class="field" for="calc">Calculate Field · Type</label>
+<input id="calc" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="index">
+<button type="button" id="calc-btn">Run Calculate Field</button>
+<div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+<details>
+<summary>How this maps to ArcGIS Pro</summary>
+<p>Lab 10 downloads a 10 m DEM from The National Map, then runs <strong>Project Raster</strong> (Data Management) into Montana State Plane so the horizontal units are meters. <strong>Hillshade</strong> and <strong>Contour</strong> (Spatial Analyst or 3D Analyst) use that projected raster. This page shows those two results for a McCartney Mountains clip; the contour interval here is 20 m.</p>
+<p>On the <strong>Map</strong> tab, in the Selection group, open <strong>Select By Attributes</strong> and write the SQL. With rows selected, run <strong>Calculate Field</strong> (Data Management, or the field menu in the attribute table) to set Type to index or intermediate. Symbolize Type so index contours use a thicker line. In Pro, Calculate Field updates every row when nothing is selected. This page updates the selection only, so a miss cannot relabel the whole layer.</p>
+</details>
+<p class="meta" id="credit"></p>
+</main>
+<div class="toolbar">
+<p id="status">Select index contours, then label Type.</p>
+<button type="button" id="check">Check</button>
+<button type="button" id="reset" class="secondary">Reset</button>
+</div>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="js/store.js"></script>
+<script src="js/sql.js"></script>
+<script src="js/contours.js"></script>
+</body>
+</html>

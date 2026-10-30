@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 · Edit polygons | GPHY 284 practice</title>
+<link rel="stylesheet" href="css/lab.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<div class="wrap">
+<p class="crumb"><a href="index.html">Data conversion practice</a> · GPHY 284</p>
+<h1>3. Split and auto-complete</h1>
+<nav class="exnav" aria-label="Exercises">
+<a href="index.html">Overview</a>
+<a href="dms.html">1 Decimal degrees</a>
+<a href="georeference.html">2 Georeference</a>
+<a href="editing.html" aria-current="page">3 Edit</a>
+<a href="contours.html">4 Contours</a>
+</nav>
+</div>
+</header>
+<main id="main" class="wrap">
+<section class="steps">
+<h2>Steps</h2>
+<ol>
+<li>Choose <strong>Split</strong>. Draw a line that starts outside the black-outlined <span id="split-name">polygon</span>, crosses it, and ends outside it. Press Finish. One finger pans the map; taps add vertices. Pinch to zoom.</li>
+<li>Choose <strong>Auto-complete</strong>. Draw a line whose first and last taps sit on the same existing outline, with the middle bowed into an empty patch (no color). Finish. The new polygon must reuse that edge, not a nearby copy of it.</li>
+<li>In the table, set the new row’s Formation to the name of the unit you snapped to. The other rows are the real map-unit names.</li>
+</ol>
+</section>
+<div class="seg" role="group" aria-label="Edit tool">
+<button type="button" id="tool-pan" aria-pressed="true">Pan</button>
+<button type="button" id="tool-split" aria-pressed="false">Split</button>
+<button type="button" id="tool-complete" aria-pressed="false">Auto-complete</button>
+<button type="button" id="undo" class="secondary">Undo vertex</button>
+<button type="button" id="finish" class="secondary">Finish</button>
+</div>
+<div class="legend" id="legend" aria-label="Map units"></div>
+<div class="map" id="map" role="application" aria-label="Geology polygons on the georeferenced topographic map"></div>
+<div class="table-wrap">
+<table>
+<caption class="hint">Attribute table. Only the new polygon’s formation can be edited.</caption>
+<thead><tr><th>ID</th><th>Unit</th><th>Formation</th><th></th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+<datalist id="formations"></datalist>
+<div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+<details>
+<summary>How this maps to ArcGIS Pro</summary>
+<p>On the <strong>Edit</strong> tab, in the Features group, click <strong>Modify</strong>, then <strong>Split</strong> (under Divide). Draw a line that crosses the polygon in at least two places and finish the sketch. Both new features keep the original attributes until you change them.</p>
+<p>To add a polygon that shares a boundary, click <strong>Create</strong>, choose the polygon template, and click <strong>Autocomplete Polygon</strong> (also written AutoComplete Polygon). Sketch the new edge so it touches the existing polygon at both ends. Pro builds the coincident boundary instead of making you trace it. Then type the formation in the attribute table, or use <strong>Calculate Field</strong>.</p>
+</details>
+<p class="meta" id="credit"></p>
+</main>
+<div class="toolbar">
+<p id="status">Loading geology…</p>
+<button type="button" id="check">Check</button>
+<button type="button" id="reset" class="secondary">Reset</button>
+</div>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/turf.min.js"></script>
+<script src="js/store.js"></script>
+<script src="js/editgeom.js"></script>
+<script src="js/edit.js"></script>
+</body>
+</html>

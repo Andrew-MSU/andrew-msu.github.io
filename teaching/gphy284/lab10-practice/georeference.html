@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 · Georeference | GPHY 284 practice</title>
+<link rel="stylesheet" href="css/lab.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<div class="wrap">
+<p class="crumb"><a href="index.html">Data conversion practice</a> · GPHY 284</p>
+<h1>2. Georeference a scanned map</h1>
+<nav class="exnav" aria-label="Exercises">
+<a href="index.html">Overview</a>
+<a href="dms.html">1 Decimal degrees</a>
+<a href="georeference.html" aria-current="page">2 Georeference</a>
+<a href="editing.html">3 Edit</a>
+<a href="contours.html">4 Contours</a>
+</nav>
+</div>
+</header>
+<main id="main" class="wrap">
+<section class="steps">
+<h2>Steps</h2>
+<ol>
+<li>The scan has no coordinates yet. The map on the right is a USGS basemap of the same mountains.</li>
+<li>Tap a landmark on the scan (Mulkey Spring, a section number, a stream bend, or a trail junction). Then tap that same place on the basemap. Zoom in before you tap.</li>
+<li>Add at least 4 pairs. Drag a numbered marker, or delete it, and watch the RMS change.</li>
+<li>Compare 1st order (affine, the right model for a flat scan) with 2nd order once you have 6 points.</li>
+</ol>
+</section>
+<div class="stage">
+<div>
+<p class="hint" id="scan-label">Unreferenced scan</p>
+<div class="viewer" id="viewer">
+<img id="scan" src="data/scan.jpg" alt="Unreferenced USGS topographic map scan of the McCartney Mountains, Montana, showing contours, streams, Mulkey Spring, and township section numbers." draggable="false">
+<div class="tools">
+<button type="button" id="zin" aria-label="Zoom in on the scan">+</button>
+<button type="button" id="zout" aria-label="Zoom out on the scan">−</button>
+<button type="button" id="zfit" aria-label="Fit the scan">Fit</button>
+</div>
+</div>
+</div>
+<div>
+<p class="hint">Reference map</p>
+<div class="map" id="map" role="application" aria-label="USGS reference map of the McCartney Mountains"></div>
+</div>
+</div>
+<div class="row" style="margin-top:0.7rem">
+<div class="seg" role="group" aria-label="Transformation">
+<button type="button" id="order1" aria-pressed="true">1st order</button>
+<button type="button" id="order2" aria-pressed="false">2nd order</button>
+</div>
+<label class="field" style="min-width:12rem">Overlay opacity
+<input id="opacity" type="range" min="0" max="100" value="65">
+</label>
+</div>
+<p id="rms">Add control points to compute an RMS error.</p>
+<div class="pair">
+<label class="field">Longitude
+<input id="lon" inputmode="decimal" autocomplete="off" placeholder="-112.58">
+</label>
+<label class="field">Latitude
+<input id="lat" inputmode="decimal" autocomplete="off" placeholder="45.53">
+</label>
+</div>
+<button type="button" id="use-coords" class="secondary">Use these coordinates instead of a map tap</button>
+<ul class="point-list" id="points"></ul>
+<div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+<details>
+<summary>How this maps to ArcGIS Pro</summary>
+<p>Select the raster and open the <strong>Georeference</strong> tab. In the Adjust group, click <strong>Add Control Points</strong>. Click the scan, then click the matching place on the reference layer, or type the coordinate. Set <strong>Transformation</strong> to <strong>1st Order Polynomial</strong> (an affine fit: shift, scale, rotation, and skew). Residuals and the total RMS error are listed in the control-point table. Delete a bad link or move it and the RMS updates.</p>
+<p><strong>2nd Order Polynomial</strong> needs more links and can bend the scan. A lower RMS is not automatically better: with only a few extra points the surface can pass near bad links by curving between them. That is overfitting. A scanned sheet of paper is nearly flat, so the 1st-order fit is usually the honest one.</p>
+</details>
+<p class="meta" id="credit"></p>
+</main>
+<div class="toolbar">
+<p id="status">Loading the scan…</p>
+<button type="button" id="check">Check</button>
+<button type="button" id="reset" class="secondary">Reset</button>
+</div>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="js/store.js"></script>
+<script src="js/transform.js"></script>
+<script src="js/viewer.js"></script>
+<script src="js/georef.js"></script>
+</body>
+</html>
