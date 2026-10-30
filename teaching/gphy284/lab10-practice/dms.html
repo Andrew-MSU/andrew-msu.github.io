@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · Decimal degrees | GPHY 284 practice</title>
+<link rel="stylesheet" href="css/lab.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site">
+<div class="wrap">
+<p class="crumb"><a href="index.html">Data conversion practice</a> · GPHY 284</p>
+<h1>1. Degrees, minutes, seconds</h1>
+<nav class="exnav" aria-label="Exercises">
+<a href="index.html">Overview</a>
+<a href="dms.html" aria-current="page">1 Decimal degrees</a>
+<a href="georeference.html">2 Georeference</a>
+<a href="editing.html">3 Edit</a>
+<a href="contours.html">4 Contours</a>
+</nav>
+</div>
+</header>
+<main id="main" class="wrap">
+<section class="steps">
+<h2>Steps</h2>
+<ol>
+<li>Convert each corner with <span class="mono">decimal = degrees + minutes/60 + seconds/3600</span>.</li>
+<li>North is positive. West is negative, so every longitude here needs a minus sign.</li>
+<li>Enter at least 4 decimal places. Use ± if the phone keyboard hides the minus key.</li>
+<li>Press Check. Each box updates as you type.</li>
+</ol>
+<p class="formula">Worked example, not one of the corners below: 45° 15′ 30″ N = 45 + 15/60 + 30/3600 = 45.25833. 112° 30′ 00″ W = −(112 + 30/60) = −112.50000.</p>
+</section>
+<p class="hint">These are practice corners near the McCartney Mountains. They are not the Lab 10 map corners.</p>
+<div id="problems"></div>
+<div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+<details>
+<summary>How this maps to ArcGIS Pro</summary>
+<p>Lab 10 gives the scanned map’s corner coordinates in degrees, minutes, and seconds. You convert them to decimal degrees before typing control points. In the Georeference tab, Add Control Points can take a typed location as well as a click. West of Greenwich is a negative longitude.</p>
+</details>
+</main>
+<div class="toolbar">
+<p id="status">Four corners, latitude and longitude.</p>
+<button type="button" id="check">Check</button>
+<button type="button" id="reset" class="secondary">Reset</button>
+</div>
+<script src="js/store.js"></script>
+<script src="js/dms.js"></script>
+</body>
+</html>
