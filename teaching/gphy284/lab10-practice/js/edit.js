@@ -108,7 +108,7 @@
       document.getElementById("tool-" + name).setAttribute("aria-pressed", name === tool ? "true" : "false");
     });
     if (tool === "split") status("Split: tap outside the outlined polygon, then across it, then Finish.");
-    else if (tool === "complete") status("Auto-complete: start and end on the same outline, bow into an empty patch, then Finish.");
+    else if (tool === "complete") status("Auto-complete: start on an edge next to the empty patch, tap across the empty patch, end on another edge, then Finish.");
     else status("Pan the map with one finger. Pinch, or use + and −, to zoom.");
     drawSketch();
   }
@@ -165,31 +165,10 @@
   }
 
   function finishComplete() {
-    var result = LabEdit.autoComplete(features, sketch, snapMeters());
+    var before = JSON.stringify(features);
+    var result = LabEdit.autoComplete(features, sketch, snapMeters(), window.turf);
     if (result.error) { say(result.error, "bad"); return; }
-    var chosen = null;
-    (result.options || [{ ring: result.ring }]).forEach(function (opt) {
-      var poly;
-      try { poly = turf.polygon([opt.ring]); }
-      catch (e) { return; }
-      if (turf.kinks(poly).features.length) return;
-      var area = turf.area(poly);
-      if (area < 8000) return;
-      var overlap = 0;
-      features.forEach(function (f) {
-        try {
-          var inter = turf.intersect(poly, f);
-          if (inter) overlap += turf.area(inter);
-        } catch (e) { /* boundary sliver */ }
-      });
-      var frac = overlap / area;
-      if (frac > 0.35) return;
-      if (!chosen || frac < chosen.frac) chosen = { ring: opt.ring, frac: frac, area: area };
-    });
-    if (!chosen) {
-      say("That shape covers geology that is already mapped. Bow the line into an empty patch.", "bad");
-      return;
-    }
+    if (JSON.stringify(features) !== before) { say("Existing polygons changed; that should never happen. Reset and try again.", "bad"); return; }
     features.push({
       type: "Feature",
       properties: {
@@ -199,14 +178,12 @@
         color: "#f4f7fb",
         splitThis: false,
         kind: "added",
-        attachedId: result.attachedId,
-        attachedFormation: result.attachedFormation,
-        attachedUnit: result.attachedUnit
+        neighborIds: result.neighborIds
       },
-      geometry: { type: "Polygon", coordinates: [chosen.ring] }
+      geometry: { type: "Polygon", coordinates: result.coordinates }
     });
     sketch = [];
-    say("New polygon shares an edge with " + result.attachedFormation + ". Type that formation name in the table.", "ok");
+    say("New polygon filled only the empty space, using the neighbors' edges as its boundary. The existing polygons did not change. Now give the new row its formation: the unit missing from this patch is " + task.gapName + " (" + task.gapUnit + ").", "ok");
     draw();
     var row = document.querySelector("#rows tr:last-child input");
     if (row) row.focus();
@@ -219,18 +196,18 @@
     var added = features.filter(function (f) { return f.properties.kind === "added"; });
     var named = added.filter(function (f) {
       var typed = norm(f.properties.formation);
-      return typed && (typed === norm(f.properties.attachedFormation) || typed === norm(f.properties.attachedUnit));
+      return typed && (typed === norm(task.gapName) || typed === norm(task.gapUnit));
     });
     if (!splitOk) {
       say("The outlined " + task.splitName + " polygon still needs a Split that cuts it into two real pieces.", "bad");
       return;
     }
     if (!added.length) {
-      say("Split is done. Use Auto-complete to add a polygon that shares an existing edge.", "bad");
+      say("Split is done. Use Auto-complete to fill the empty patch with a new polygon.", "bad");
       return;
     }
     if (!named.length) {
-      say("The new polygon needs a Formation that matches the unit it snapped to. Read that name in the table.", "bad");
+      say("The new polygon needs a Formation: " + task.gapName + " (" + task.gapUnit + "), the unit missing from the empty patch.", "bad");
       return;
     }
     say("Passed. Split, Autocomplete Polygon, and an attribute edit — the same three ideas as the Pro edit tools.", "ok");

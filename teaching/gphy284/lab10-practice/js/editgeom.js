@@ -321,39 +321,66 @@
     return false;
   }
 
-  function autoComplete(features, line, tolM) {
+  /* turf 6 takes difference(a, b); turf 7 takes a FeatureCollection. */
+  function diff(turf, a, b) {
+    return turf.difference.length >= 2 ? turf.difference(a, b) : turf.difference(turf.featureCollection([a, b]));
+  }
+
+  /* Autocomplete Polygon, as in ArcGIS Pro: the sketch starts and ends on existing
+     edges, and the new polygon is only the EMPTY area enclosed by the sketch and the
+     existing boundaries. Existing polygons are never changed; the new polygon reuses
+     their edges, so there are no gaps or overlaps. */
+  function autoComplete(features, line, tolM, turf) {
+    if (!turf) return { error: "Geometry library did not load. Refresh the page." };
     if (!line || line.length < 2) return { error: "Draw at least two vertices." };
     var start = snapPoint(line[0], features, tolM);
     var end = snapPoint(line[line.length - 1], features, tolM);
     if (!start || !end) {
-      return { error: "Both ends of the line need to touch an existing polygon. Zoom in and place the ends on an outline. Snap distance right now is about " + Math.round(tolM) + " m." };
-    }
-    if (start.feature !== end.feature || start.ringIndex !== end.ringIndex) {
-      return { error: "Both ends need to touch the same polygon. ArcGIS Pro can follow several neighbors; this practice closes against one." };
+      return { error: "Both ends of the line need to touch an existing edge. Zoom in and place the first and last taps on an outline next to the empty patch. Snap distance right now is about " + Math.round(tolM) + " m." };
     }
     var sketch = line.map(function (p) { return p.slice(); });
     sketch[0] = start.point.slice();
     sketch[sketch.length - 1] = end.point.slice();
-    var ring = start.ring;
-    var forward = chainForward(ring, start.edge, start.point, end.edge, end.point);
-    var backward = chainBackward(ring, start.edge, start.point, end.edge, end.point);
-    if (!forward || !backward) return { error: "Could not follow that outline. Try ends that sit on a clearer edge." };
-    var candidates = [closeWith(sketch, forward), closeWith(sketch, backward)].filter(Boolean);
-    if (!candidates.length) return { error: "That line did not close a polygon." };
-    var ranked = candidates.map(function (coords) {
-      return { ring: coords, area: ringArea(coords) };
-    }).filter(function (c) {
-      return c.area > 8000 && c.area < 8e6 && !selfIntersects(c.ring) && sharesBoundary(c.ring, start.feature);
+    var ring = sketch.concat([sketch[0].slice()]);
+    if (ring.length < 4) return { error: "Add at least one vertex out in the empty patch between the two ends." };
+    var sketchPoly;
+    try { sketchPoly = turf.polygon([ring]); }
+    catch (e) { return { error: "That line did not enclose any space. Bow it out into the empty patch." }; }
+    if (turf.kinks(sketchPoly).features.length) {
+      return { error: "The line crosses itself. Undo a vertex and draw one clean curve around the empty patch." };
+    }
+    var empty = sketchPoly;
+    try {
+      /* Stay inside the mapped area: nothing exists beyond the map edge to fill against. */
+      var frame = turf.bboxPolygon(turf.bbox(turf.featureCollection(features)));
+      empty = turf.intersect.length >= 2 ? turf.intersect(empty, frame) : turf.intersect(turf.featureCollection([empty, frame]));
+    } catch (e) { empty = sketchPoly; }
+    for (var i = 0; i < features.length && empty; i++) {
+      var f = features[i];
+      try {
+        if (!turf.booleanIntersects(empty, f)) continue;
+        empty = diff(turf, empty, f);
+      } catch (e) { /* skip a degenerate sliver */ }
+    }
+    if (!empty) return { error: "There is no empty space inside that sketch. Autocomplete Polygon only fills space where no polygon exists yet." };
+    var pieces = empty.geometry.type === "MultiPolygon"
+      ? empty.geometry.coordinates.map(function (c) { return turf.polygon(c); })
+      : [empty];
+    pieces.sort(function (x, y) { return turf.area(y) - turf.area(x); });
+    var best = pieces[0];
+    var area = turf.area(best);
+    if (area < 8000) return { error: "The empty area inside that sketch is too small. Bow the line farther into the empty patch." };
+    var touched = features.filter(function (f) {
+      try { return turf.booleanIntersects(turf.buffer(best, 2, { units: "meters" }), f); }
+      catch (e) { return false; }
     });
-    ranked.sort(function (a, b) { return a.area - b.area; });
-    if (!ranked.length) return { error: "That outline crosses itself, misses the shared edge, or is too small. Undo a point and bow the line into an empty patch." };
+    var sharesEdge = touched.some(function (f) { return sharesBoundary(best.geometry.coordinates[0], f); });
+    if (!sharesEdge) return { error: "The new polygon has to share an edge with an existing polygon. Start and end the line on an outline." };
     return {
-      ring: ranked[0].ring,
-      area: ranked[0].area,
-      attachedId: start.feature.properties.id,
-      attachedFormation: start.feature.properties.formation,
-      attachedUnit: start.feature.properties.unit,
-      options: ranked
+      ring: best.geometry.coordinates[0],
+      coordinates: best.geometry.coordinates,
+      area: area,
+      neighborIds: touched.map(function (f) { return f.properties.id; })
     };
   }
 

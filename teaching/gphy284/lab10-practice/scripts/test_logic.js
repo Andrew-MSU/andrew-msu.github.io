@@ -2,6 +2,7 @@ const assert = require("assert");
 const T = require("../js/transform");
 const SQL = require("../js/sql");
 const E = require("../js/editgeom");
+const turf = require("../vendor/turf.min.js");
 
 function near(a, b, tol) {
   assert.ok(Math.abs(a - b) <= tol, a + " vs " + b);
@@ -100,16 +101,31 @@ function square() {
       coordinates: [[[x0, y0], [x0 + s, y0], [x0 + s, y0 + s], [x0, y0 + s], [x0, y0]]]
     }
   };
-  const outside = E.autoComplete(
-    [poly],
-    [[x0 + 0.002, y0], [x0 + 0.002, y0 - 0.004], [x0 + 0.008, y0 - 0.004], [x0 + 0.008, y0]],
-    80
+  /* Autocomplete fills only the empty gap between two existing squares and leaves them unchanged. */
+  const right = JSON.parse(JSON.stringify(poly));
+  right.properties = { id: 2, formation: "Frontier Formation", unit: "Kf" };
+  right.geometry.coordinates = [[[x0 + 2 * s, y0], [x0 + 3 * s, y0], [x0 + 3 * s, y0 + s], [x0 + 2 * s, y0 + s], [x0 + 2 * s, y0]]];
+  const both = [poly, right];
+  const before = JSON.stringify(both);
+  const fill = E.autoComplete(
+    both,
+    [[x0 + s, y0 + s], [x0 + 2.5 * s, y0 + s], [x0 + 2.5 * s, y0], [x0 + s, y0 + 1e-7]],
+    80,
+    turf
   );
-  assert.ok(!outside.error, outside.error);
-  assert.ok(outside.area > 0);
-  assert.strictEqual(outside.attachedFormation, "Granodiorite");
-  assert.ok(E.sharesBoundary(outside.ring, poly));
-  assert.ok(!E.insideFeature([x0 + 0.005, y0 - 0.002], poly));
+  assert.ok(!fill.error, fill.error);
+  assert.strictEqual(JSON.stringify(both), before, "existing polygons must not change");
+  const gapArea = turf.area(turf.polygon([[[x0 + s, y0], [x0 + 2 * s, y0], [x0 + 2 * s, y0 + s], [x0 + s, y0 + s], [x0 + s, y0]]]));
+  near(fill.area, gapArea, gapArea * 0.02);
+  assert.deepStrictEqual(fill.neighborIds.sort(), [1, 2]);
+  /* A sketch that encloses only existing geology has nothing to fill. */
+  const none = E.autoComplete(
+    both,
+    [[x0, y0 + 0.2 * s], [x0 + 0.5 * s, y0 + 0.5 * s], [x0, y0 + 0.8 * s]],
+    80,
+    turf
+  );
+  assert.ok(none.error);
 })();
 
 (function () {

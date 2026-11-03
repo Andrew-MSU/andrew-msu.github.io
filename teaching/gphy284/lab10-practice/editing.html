@@ -27,8 +27,8 @@
 <h2>Steps</h2>
 <ol>
 <li>Choose <strong>Split</strong>. Draw a line that starts outside the black-outlined <span id="split-name">polygon</span>, crosses it, and ends outside it. Press Finish. One finger pans the map; taps add vertices. Pinch to zoom.</li>
-<li>Choose <strong>Auto-complete</strong>. Draw a line whose first and last taps sit on the same existing outline, with the middle bowed into an empty patch (no color). Finish. The new polygon must reuse that edge, not a nearby copy of it.</li>
-<li>In the table, set the new row’s Formation to the name of the unit you snapped to. The other rows are the real map-unit names.</li>
+<li>Choose <strong>Auto-complete</strong>. Find the empty patch (no color) between existing polygons. Tap first on an existing edge at one side of the patch, tap across the empty patch, and tap last on an existing edge. It is fine if the line runs over colored polygons; only the empty space is filled. Finish. The new polygon fills only the empty space and uses the neighbors’ edges as its boundary. The existing polygons do not change.</li>
+<li>In the table, set the new row’s Formation to the unit missing from the patch (named in the message after you finish). The other rows are the real map-unit names.</li>
 </ol>
 </section>
 <div class="seg" role="group" aria-label="Edit tool">
@@ -52,7 +52,7 @@
 <details>
 <summary>How this maps to ArcGIS Pro</summary>
 <p>On the <strong>Edit</strong> tab, in the Features group, click <strong>Modify</strong>, then <strong>Split</strong> (under Divide). Draw a line that crosses the polygon in at least two places and finish the sketch. Both new features keep the original attributes until you change them.</p>
-<p>To add a polygon that shares a boundary, click <strong>Create</strong>, choose the polygon template, and click <strong>Autocomplete Polygon</strong> (also written AutoComplete Polygon). Sketch the new edge so it touches the existing polygon at both ends. Pro builds the coincident boundary instead of making you trace it. Then type the formation in the attribute table, or use <strong>Calculate Field</strong>.</p>
+<p>To fill empty space between existing polygons, click <strong>Create</strong>, choose the polygon template, and click <strong>Autocomplete Polygon</strong>. Start the sketch on an existing edge, draw across the empty area, and finish on an existing edge. Pro creates a new polygon in the space no feature occupies yet, using the existing edges as its boundary, so there are no gaps or overlaps. Existing polygons are not changed. (Split is the opposite: it changes an existing polygon by cutting it in two.) Then type the formation in the attribute table, or use <strong>Calculate Field</strong>.</p>
 </details>
 <p class="meta" id="credit"></p>
 </main>
