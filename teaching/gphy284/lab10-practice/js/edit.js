@@ -22,14 +22,7 @@
   function norm(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, " "); }
 
   function style(feature) {
-    var p = feature.properties;
-    var added = p.kind === "added";
-    return {
-      color: p.splitThis ? "#111" : (added ? "#083e75" : "#222"),
-      weight: p.splitThis ? 4 : (added ? 3 : 1.5),
-      fillColor: added && !p.formation ? "#ffffff" : (p.color || "#ccc"),
-      fillOpacity: p.splitThis ? 0.55 : 0.48
-    };
+    return LabEdit.polygonStyle(feature);
   }
 
   function draw() {
@@ -171,15 +164,7 @@
     if (JSON.stringify(features) !== before) { say("Existing polygons changed; that should never happen. Reset and try again.", "bad"); return; }
     features.push({
       type: "Feature",
-      properties: {
-        id: maxId() + 1,
-        unit: "",
-        formation: "",
-        color: "#f4f7fb",
-        splitThis: false,
-        kind: "added",
-        neighborIds: result.neighborIds
-      },
+      properties: LabEdit.attributesForAdded(task, features, maxId() + 1, result.neighborIds),
       geometry: { type: "Polygon", coordinates: result.coordinates }
     });
     sketch = [];

@@ -128,6 +128,37 @@ function square() {
   assert.ok(none.error);
 })();
 
+/* Autocomplete polygons take the same map-unit fill as the other polygons of that unit. */
+(function () {
+  const fs = require("fs");
+  const path = require("path");
+  const fc = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/geology.geojson"), "utf8"));
+  const task = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/geology.json"), "utf8"));
+  const existing = fc.features.find((f) => f.properties.unit === task.gapUnit);
+  assert.ok(existing, "layer has no symbol for " + task.gapUnit);
+  const before = JSON.stringify(fc.features);
+  const props = E.attributesForAdded(task, fc.features, 99, [existing.properties.id]);
+  assert.strictEqual(JSON.stringify(fc.features), before, "looking up a symbol must not change the layer");
+  assert.strictEqual(props.unit, task.gapUnit);
+  assert.strictEqual(props.formation, "");
+  assert.strictEqual(props.kind, "added");
+  assert.strictEqual(props.color, existing.properties.color);
+  assert.notStrictEqual(props.color, "#ffffff");
+  assert.notStrictEqual(props.color, "#f4f7fb");
+  const added = E.polygonStyle({ properties: props });
+  const layerStyle = E.polygonStyle(existing);
+  assert.strictEqual(added.fill, true);
+  assert.strictEqual(added.fillColor, layerStyle.fillColor);
+  assert.strictEqual(added.fillOpacity, layerStyle.fillOpacity);
+  assert.strictEqual(added.color, layerStyle.color);
+  assert.strictEqual(added.weight, layerStyle.weight);
+  assert.strictEqual(added.fillColor, "#3e8f45");
+  const outlined = E.polygonStyle({ properties: { splitThis: true, color: "#d45d79" } });
+  assert.strictEqual(outlined.color, "#111");
+  assert.strictEqual(outlined.weight, 4);
+  assert.strictEqual(outlined.fillColor, "#d45d79");
+})();
+
 (function () {
   const dms = (d, m, s, sign) => sign * (d + m / 60 + s / 3600);
   near(dms(45, 32, 16, 1), 45.5377777778, 1e-9);
