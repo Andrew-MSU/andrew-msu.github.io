@@ -384,11 +384,56 @@
     };
   }
 
+  /* Fill color is the map-unit symbol stored on each polygon. A new
+     autocomplete feature has to carry the same unit and color as the
+     other polygons of that unit, or the renderer has nothing to draw. */
+  function colorForUnit(features, unit) {
+    var addedColor = "";
+    for (var i = 0; i < (features || []).length; i++) {
+      var p = features[i].properties || {};
+      if (p.unit !== unit || !p.color) continue;
+      if (p.kind === "added") {
+        if (!addedColor) addedColor = p.color;
+      } else {
+        return p.color;
+      }
+    }
+    return addedColor;
+  }
+
+  function attributesForAdded(task, features, id, neighborIds) {
+    var unit = task && task.gapUnit ? task.gapUnit : "";
+    return {
+      id: id,
+      unit: unit,
+      formation: "",
+      color: colorForUnit(features, unit),
+      splitThis: false,
+      kind: "added",
+      neighborIds: neighborIds || []
+    };
+  }
+
+  function polygonStyle(feature) {
+    var p = (feature && feature.properties) || {};
+    var outlined = !!p.splitThis;
+    return {
+      color: outlined ? "#111" : "#222",
+      weight: outlined ? 4 : 1.5,
+      fill: true,
+      fillColor: p.color || "#ccc",
+      fillOpacity: outlined ? 0.55 : 0.48
+    };
+  }
+
   return {
     splitPolygon: splitPolygon,
     autoComplete: autoComplete,
     insideFeature: insideFeature,
     ringArea: ringArea,
-    sharesBoundary: sharesBoundary
+    sharesBoundary: sharesBoundary,
+    colorForUnit: colorForUnit,
+    attributesForAdded: attributesForAdded,
+    polygonStyle: polygonStyle
   };
 });
