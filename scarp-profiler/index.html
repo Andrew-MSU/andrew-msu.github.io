@@ -19,7 +19,7 @@
   <a class="home" href="../#teaching">Teaching resources</a>
 </header>
 
-<p class="lede">Profile <strong>down dip</strong> (perpendicular to strike), from the footwall to the hanging wall. <strong>Throw</strong> is the vertical separation of those two surfaces. <strong>Heave</strong> = throw / tan(dip). Add every linked piedmont scarp to the range front; subtract antithetic scarps.</p>
+<p class="lede">Draw a profile <strong>down dip</strong> by clicking vertices on the map, footwall first and hanging wall last. <strong>Throw</strong> is the vertical separation of those two surfaces. <strong>Heave</strong> = throw / tan(dip). Add every linked piedmont scarp to the range front; subtract antithetic scarps.</p>
 <details>
   <summary>Why the profiles are drawn this way</summary>
   <div class="help">
@@ -27,7 +27,7 @@
     <p>The profile has to run down dip. A line along the scarp mixes the scarp with the slope of the fan or the range front, and the vertical gap on that line is not the throw. Start on the upthrown block (usually the range) and end on the downthrown block (usually the basin).</p>
     <p>A range-bounding normal fault often reaches the surface as the main range-front scarp plus one or more piedmont scarps on the bajada. Those scarps are the same fault system, stepped into the basin. Sum their throws, and sum their heaves. An antithetic scarp faces the other way, so its throw and heave count negative.</p>
     <ol>
-      <li>Jump to a site, or click a Quaternary fault and choose <em>Profile perpendicular to this fault here</em>. You can also click the footwall, then the hanging wall, yourself.</li>
+      <li>Jump to a site, or click a Quaternary fault and choose <em>Profile perpendicular to this fault here</em>. To draw your own line, choose <em>Draw profile</em> and click each vertex. The first click is the footwall and the last is the hanging wall. Press Finish or Enter to sample it. Backspace removes the last vertex.</li>
       <li>On the plot, mark the upper surface, the lower surface, and the scarp face. Each mark is two clicks. The tool fits a straight line through the elevations in between.</li>
       <li>Throw is the vertical gap between the upper and lower lines at the middle of the scarp. Set the dip. Heave and net slip update immediately.</li>
       <li>Repeat for each linked scarp. Leave checked the rows that belong to one fault system. The totals row sums them.</li>
@@ -76,7 +76,7 @@
 
 <div class="modes" role="radiogroup" aria-label="How to draw a profile">
   <button type="button" id="mode-fault" aria-pressed="true">Click a Quaternary fault</button>
-  <button type="button" id="mode-profile" aria-pressed="false">Two clicks: footwall, then hanging wall</button>
+  <button type="button" id="mode-profile" aria-pressed="false">Draw profile</button>
   <button type="button" id="mode-strike" aria-pressed="false">Strike line, then down-dip profile</button>
   <label id="hw-side-label" hidden>Hanging wall is
     <select id="hw-side">
@@ -84,11 +84,12 @@
       <option value="right">right of the strike line</option>
     </select>
   </label>
-  <button type="button" id="cancel-draft" hidden>Cancel point</button>
+  <button type="button" id="finish-draft" hidden>Finish profile</button>
+  <button type="button" id="cancel-draft" hidden>Cancel</button>
   <label class="check"><input id="qfault-toggle" type="checkbox" checked> Quaternary faults</label>
 </div>
 <p id="fault-note" class="note">Loading the USGS Quaternary Fault and Fold Database…</p>
-<p id="status" class="status" role="status">Click a colored fault, then profile perpendicular to it. Or draw a profile from the footwall to the hanging wall.</p>
+<p id="status" class="status" role="status">Click a colored fault, then profile perpendicular to it. Or choose Draw profile and click each vertex of the line.</p>
 <div id="progress" hidden>
   <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
   <span id="progress-label">Sampling elevations…</span>

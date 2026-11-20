@@ -58,6 +58,7 @@
         p.fits = p.fits || {};
         p.samples = p.samples || [];
         if (p.include == null) p.include = true;
+        if (!p.vertices || p.vertices.length < 2) p.vertices = S.verticesOf(p);
       });
       state.activeId = raw.activeId || (state.profiles[0] && state.profiles[0].id) || null;
       state.mode = raw.mode || 'fault';
@@ -239,10 +240,26 @@
       persist();
     });
     document.addEventListener('keydown', function (ev) {
-      if (ev.key !== 'Escape') return;
       var tag = document.activeElement && document.activeElement.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      cancelDraft();
+      var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      if (ev.key === 'Escape') {
+        if (typing) return;
+        cancelDraft();
+        return;
+      }
+      if (typing || state.mode !== 'profile' || !state.draft) return;
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        finishProfileDraft(false);
+      } else if (ev.key === 'Backspace' || ev.key === 'Delete') {
+        ev.preventDefault();
+        undoVertex();
+      }
+    });
+    map.on('dblclick', function (e) {
+      if (state.mode !== 'profile' || !state.draft) return;
+      L.DomEvent.stop(e);
+      finishProfileDraft(true);
     });
   }
 
@@ -455,7 +472,7 @@
       var choice = S.chooseHangingBearing(nearest.bearing, props.dip_direction);
       var lengthM = clampLength($('length').value);
       var lineEnds = S.perpendicularProfile(nearest.point, choice.footwall, choice.hanging, lengthM);
-      createProfile(lineEnds.start, lineEnds.end, {
+      createProfile([lineEnds.start, lineEnds.end], {
         method: 'qfault',
         fault: props,
         methodNote: choice.usedDip
@@ -485,10 +502,12 @@
     });
     $('hw-side-label').hidden = mode !== 'strike';
     map.getContainer().style.cursor = mode === 'fault' ? '' : 'crosshair';
+    if (mode === 'profile') map.doubleClickZoom.disable();
+    else map.doubleClickZoom.enable();
     if (mode === 'fault') {
       setStatus('Click a colored Quaternary fault, then choose “Profile perpendicular to this fault here”.');
     } else if (mode === 'profile') {
-      setStatus('Click the footwall (upthrown) first, then the hanging wall (downthrown).');
+      setStatus('Click vertices down dip. The first is the footwall and the last is the hanging wall. Enter or Finish samples the path. Backspace undoes a vertex.');
     } else {
       setStatus('Click two points along the scarp crest. A down-dip profile is drawn through the midpoint.');
     }
@@ -505,13 +524,15 @@
   }
 
   function handleDrawClick(latlng) {
+    if (state.mode === 'profile') {
+      addProfileVertex(latlng);
+      return;
+    }
     if (!state.draft) {
-      state.draft = { first: latlng };
-      drawDraft(latlng, latlng);
+      state.draft = { kind: 'strike', first: latlng };
+      drawStrikeDraft(latlng, latlng);
       $('cancel-draft').hidden = false;
-      setStatus(state.mode === 'profile'
-        ? 'Now click the hanging wall.'
-        : 'Now click the other end of the strike line.');
+      setStatus('Now click the other end of the strike line.');
       return;
     }
     var first = state.draft.first;
@@ -520,33 +541,101 @@
       setStatus('Those two points are only a few meters apart. Click a longer line.');
       return;
     }
-    if (state.mode === 'profile') {
-      createProfile(first, latlng, {
-        method: 'clicks',
-        methodNote: 'Profile drawn from the footwall click to the hanging-wall click.'
-      });
-      return;
-    }
     var mid = S.midpoint(first, latlng);
     var strike = S.bearing(first, latlng);
     var hanging = S.sideBearing(strike, $('hw-side').value);
     var footwall = (hanging + 180) % 360;
     var ends = S.perpendicularProfile(mid, footwall, hanging, clampLength($('length').value));
-    createProfile(ends.start, ends.end, {
+    createProfile([ends.start, ends.end], {
       method: 'strike',
       methodNote: 'Down-dip profile through the midpoint of the strike line. Hanging wall is ' + $('hw-side').value + ' of the direction you drew.'
     });
   }
 
-  function onMouseMove(e) {
-    if (!state.draft) return;
-    drawDraft(state.draft.first, e.latlng);
+  function addProfileVertex(latlng) {
+    if (!state.draft || state.draft.kind !== 'profile') state.draft = { kind: 'profile', vertices: [] };
+    var verts = state.draft.vertices;
+    if (verts.length) {
+      var dist = S.haversine(verts[verts.length - 1], latlng);
+      if (verts.length >= 2 && dist < 12) {
+        finishProfileDraft(false);
+        return;
+      }
+      if (dist < 8) {
+        setStatus('That click is on the last vertex. Click the next point down dip, or press Finish.');
+        return;
+      }
+    }
+    verts.push({ lat: latlng.lat, lng: latlng.lng });
+    $('cancel-draft').hidden = false;
+    $('finish-draft').hidden = verts.length < 2;
+    drawProfileDraft(latlng);
+    setStatus(verts.length === 1
+      ? 'Footwall vertex set. Keep clicking down dip. Enter or Finish samples the path. Backspace undoes a vertex.'
+      : (verts.length + ' vertices, ' + Math.round(S.pathLength(verts)) + ' m. Click the next vertex, or Finish.'));
   }
 
-  function drawDraft(a, b) {
+  function finishProfileDraft(fromDoubleClick) {
+    if (!state.draft || state.draft.kind !== 'profile') return;
+    var verts = state.draft.vertices.map(function (v) { return { lat: v.lat, lng: v.lng }; });
+    if (fromDoubleClick && verts.length >= 2 && S.haversine(verts[verts.length - 1], verts[verts.length - 2]) < 15) {
+      verts.pop();
+    }
+    if (verts.length < 2) {
+      setStatus('A profile needs at least two vertices. Click the footwall, then points down dip.');
+      return;
+    }
+    if (S.pathLength(verts) < 20) {
+      setStatus('That profile is only a few meters long. Space the vertices farther apart.');
+      return;
+    }
+    cancelDraft();
+    createProfile(verts, {
+      method: 'clicks',
+      methodNote: 'Profile drawn through ' + verts.length + ' vertices. The first is the footwall and the last is the hanging wall.'
+    });
+  }
+
+  function undoVertex() {
+    if (!state.draft || state.draft.kind !== 'profile' || !state.draft.vertices.length) {
+      cancelDraft();
+      return;
+    }
+    state.draft.vertices.pop();
+    if (!state.draft.vertices.length) {
+      cancelDraft();
+      setStatus('Vertex removed. Click the footwall to start the profile.');
+      return;
+    }
+    $('finish-draft').hidden = state.draft.vertices.length < 2;
+    drawProfileDraft(null);
+    setStatus(state.draft.vertices.length + ' vertices. Click the next one, or Finish.');
+  }
+
+  function onMouseMove(e) {
+    if (!state.draft) return;
+    if (state.draft.kind === 'profile') drawProfileDraft(e.latlng);
+    else if (state.draft.first) drawStrikeDraft(state.draft.first, e.latlng);
+  }
+
+  function drawProfileDraft(cursor) {
     draftLayer.clearLayers();
-    var label = state.mode === 'strike' ? '1' : 'FW';
-    L.marker([a.lat, a.lng], { icon: endIcon(label, '#1b7f4e'), interactive: false }).addTo(draftLayer);
+    var verts = state.draft && state.draft.vertices ? state.draft.vertices : [];
+    verts.forEach(function (v, i) {
+      var label = i === 0 ? 'FW' : String(i + 1);
+      var color = i === 0 ? '#1b7f4e' : '#003f7f';
+      L.marker([v.lat, v.lng], { icon: endIcon(label, color), interactive: false }).addTo(draftLayer);
+    });
+    var line = verts.map(function (v) { return [v.lat, v.lng]; });
+    if (cursor && verts.length) line.push([cursor.lat, cursor.lng]);
+    if (line.length >= 2) {
+      L.polyline(line, { color: '#003f7f', weight: 3, dashArray: '6 6', interactive: false }).addTo(draftLayer);
+    }
+  }
+
+  function drawStrikeDraft(a, b) {
+    draftLayer.clearLayers();
+    L.marker([a.lat, a.lng], { icon: endIcon('1', '#1b7f4e'), interactive: false }).addTo(draftLayer);
     L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
       color: '#003f7f', weight: 3, dashArray: '6 6', interactive: false
     }).addTo(draftLayer);
@@ -556,6 +645,7 @@
     state.draft = null;
     draftLayer.clearLayers();
     $('cancel-draft').hidden = true;
+    if ($('finish-draft')) $('finish-draft').hidden = true;
   }
 
   function endIcon(text, color) {
@@ -573,7 +663,10 @@
     return Math.max(40, Math.min(20000, n));
   }
 
-  function createProfile(start, end, extra) {
+  function createProfile(vertices, extra) {
+    var clean = vertices.map(function (v) { return { lat: v.lat, lng: v.lng }; });
+    var start = clean[0];
+    var end = clean[clean.length - 1];
     var name = ($('group-name').value || '').trim() || S.suggestGroupName(state.profiles.map(function (p) { return p.group; }));
     var profile = {
       id: 'sp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
@@ -583,13 +676,14 @@
       include: true,
       dip: clampDip($('dip').value),
       spacing: Number($('spacing').value) || 2,
-      lengthM: S.haversine(start, end),
+      lengthM: S.pathLength(clean),
       elevationSource: '',
       fault: extra.fault || null,
       method: extra.method || '',
       methodNote: extra.methodNote || '',
       fits: {},
       samples: [],
+      vertices: clean,
       start: { lat: start.lat, lng: start.lng },
       end: { lat: end.lat, lng: end.lng }
     };
@@ -604,14 +698,19 @@
     renderSide();
     renderTable(true);
     sampleProfile(profile);
-    map.fitBounds(L.latLngBounds([start.lat, start.lng], [end.lat, end.lng]).pad(0.4));
+    map.fitBounds(boundsOf(clean).pad(0.4));
+  }
+
+  function boundsOf(vertices) {
+    return L.latLngBounds(vertices.map(function (v) { return [v.lat, v.lng]; }));
   }
 
   function drawProfiles() {
     profileLayer.clearLayers();
     state.profiles.forEach(function (p) {
       var on = p.id === state.activeId;
-      L.polyline([[p.start.lat, p.start.lng], [p.end.lat, p.end.lng]], {
+      var verts = S.verticesOf(p);
+      L.polyline(verts.map(function (v) { return [v.lat, v.lng]; }), {
         pane: 'profiles',
         color: on ? '#003f7f' : '#c44900',
         weight: on ? 4 : 3,
@@ -622,16 +721,17 @@
         persist();
         refresh();
       }).addTo(profileLayer);
-      L.marker([p.start.lat, p.start.lng], {
-        pane: 'profiles',
-        icon: endIcon('FW', '#1b7f4e'),
-        interactive: false
-      }).addTo(profileLayer);
-      L.marker([p.end.lat, p.end.lng], {
-        pane: 'profiles',
-        icon: endIcon('HW', '#9b2226'),
-        interactive: false
-      }).addTo(profileLayer);
+      verts.forEach(function (v, i) {
+        if (i === 0) {
+          L.marker([v.lat, v.lng], { pane: 'profiles', icon: endIcon('FW', '#1b7f4e'), interactive: false }).addTo(profileLayer);
+        } else if (i === verts.length - 1) {
+          L.marker([v.lat, v.lng], { pane: 'profiles', icon: endIcon('HW', '#9b2226'), interactive: false }).addTo(profileLayer);
+        } else {
+          L.circleMarker([v.lat, v.lng], {
+            pane: 'profiles', radius: 4, color: '#003f7f', weight: 2, fillColor: '#fff', fillOpacity: 1, interactive: false
+          }).addTo(profileLayer);
+        }
+      });
     });
   }
 
@@ -659,10 +759,11 @@
     setStatus('Sampling ' + profile.group + ' about every ' + spacing + ' m…');
     var signal = { aborted: false };
     state.abortSample = function () { signal.aborted = true; };
-    getSamples(profile.start, profile.end, spacing, signal)
+    var vertices = S.verticesOf(profile);
+    getSamples(vertices, spacing, signal)
       .then(function (raw) {
         if (token !== state.sampleToken || signal.aborted) return null;
-        var samples = S.downsample(S.projectSamples(raw, profile.start, profile.end), spacing);
+        var samples = S.downsample(S.projectSamples(raw, vertices), spacing);
         if (samples.length < 2) throw new Error('3DEP returned no usable elevations on this line');
         return { samples: samples, source: 'USGS 3DEP getSamples' };
       })
@@ -670,7 +771,7 @@
         if (token !== state.sampleToken || signal.aborted) return null;
         showProgress('Line sample failed. Querying points from EPQS…', 0);
         setStatus('The 3DEP line sample did not finish (' + err.message + '). Trying point-by-point elevations.');
-        return epqsLine(profile.start, profile.end, spacing, signal, function (done, total) {
+        return epqsLine(vertices, spacing, signal, function (done, total) {
           if (token !== state.sampleToken) return;
           showProgress('USGS EPQS ' + done + ' / ' + total, done / total);
         });
@@ -685,7 +786,7 @@
         }
         profile.samples = result.samples;
         profile.elevationSource = result.source;
-        profile.lengthM = S.haversine(profile.start, profile.end);
+        profile.lengthM = S.pathLength(S.verticesOf(profile));
         profile.sampleError = '';
         hideProgress();
         var note = S.resolutionNote(result.samples);
@@ -702,12 +803,14 @@
       });
   }
 
-  function getSamples(start, end, spacingM, signal) {
-    var midLat = (start.lat + end.lat) / 2;
+  function getSamples(vertices, spacingM, signal) {
+    var midLat = 0;
+    vertices.forEach(function (v) { midLat += v.lat; });
+    midLat = midLat / vertices.length;
     var mDeg = Math.min(111132, Math.abs(111320 * Math.cos(midLat * Math.PI / 180)) || 111132);
     var deg = Math.max(1, spacingM) / mDeg;
     var geometry = {
-      paths: [[[start.lng, start.lat], [end.lng, end.lat]]],
+      paths: [vertices.map(function (v) { return [v.lng, v.lat]; })],
       spatialReference: { wkid: 4326 }
     };
     var params = new URLSearchParams({
@@ -769,8 +872,8 @@
     return once().catch(function () { return once(); });
   }
 
-  function epqsLine(start, end, spacingM, signal, onProgress) {
-    var pts = S.pointsAlong(start, end, spacingM);
+  function epqsLine(vertices, spacingM, signal, onProgress) {
+    var pts = S.pointsAlong(vertices, spacingM);
     var results = new Array(pts.length);
     var cursor = 0;
     var done = 0;
@@ -1073,7 +1176,7 @@
         zoom.textContent = 'Zoom';
         zoom.addEventListener('click', function () {
           state.activeId = p.id;
-          map.fitBounds(L.latLngBounds([p.start.lat, p.start.lng], [p.end.lat, p.end.lng]).pad(0.45));
+          map.fitBounds(boundsOf(S.verticesOf(p)).pad(0.45));
           persist();
           refresh();
         });
@@ -1306,8 +1409,9 @@
     $('mode-strike').addEventListener('click', function () { setMode('strike'); });
     $('cancel-draft').addEventListener('click', function () {
       cancelDraft();
-      setStatus('Point cancelled.');
+      setStatus('Drawing cancelled.');
     });
+    $('finish-draft').addEventListener('click', function () { finishProfileDraft(false); });
     $('cancel-sample').addEventListener('click', function () {
       if (state.abortSample) state.abortSample();
       state.sampleToken += 1;
@@ -1423,11 +1527,7 @@
             setStatus('Imported ' + incoming.length + ' profiles. Sampling elevations for ' + needs.length + ' that had no stored samples.');
             sampleNext(needs, 0);
           }
-          var first = incoming[0];
-          map.fitBounds(L.latLngBounds(
-            [first.start.lat, first.start.lng],
-            [first.end.lat, first.end.lng]
-          ).pad(0.4));
+          map.fitBounds(boundsOf(S.verticesOf(incoming[0])).pad(0.4));
         } catch (err) {
           setStatus('That file is not a profile GeoJSON (' + err.message + ').');
         }
