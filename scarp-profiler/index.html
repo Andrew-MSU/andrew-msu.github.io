@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scarp profiler | Extensional tectonics</title>
+<meta name="description" content="Measure throw and heave on range-front and piedmont normal-fault scarps using USGS 3DEP topography and the Quaternary Fault and Fold Database.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 13 L6 7 L9 10 L15 3' fill='none' stroke='%23003f7f' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#map">Skip to the map</a>
+<header>
+  <div>
+    <h1>Scarp profiler</h1>
+    <p>Extensional tectonics — throw and heave on a normal fault and its piedmont scarps</p>
+  </div>
+  <a class="home" href="../#teaching">Teaching resources</a>
+</header>
+
+<p class="lede">Profile <strong>down dip</strong> (perpendicular to strike), from the footwall to the hanging wall. <strong>Throw</strong> is the vertical separation of those two surfaces. <strong>Heave</strong> = throw / tan(dip). Add every linked piedmont scarp to the range front; subtract antithetic scarps.</p>
+<details>
+  <summary>Why the profiles are drawn this way</summary>
+  <div class="help">
+    <p>Throw is how far the footwall surface has moved up relative to the hanging wall. Heave is the matching horizontal separation. For a planar fault, net slip = throw / sin(dip). A 60° normal fault with 10 m of throw has about 5.8 m of heave and 11.5 m of net slip. The dip defaults to 60° when you do not know it.</p>
+    <p>The profile has to run down dip. A line along the scarp mixes the scarp with the slope of the fan or the range front, and the vertical gap on that line is not the throw. Start on the upthrown block (usually the range) and end on the downthrown block (usually the basin).</p>
+    <p>A range-bounding normal fault often reaches the surface as the main range-front scarp plus one or more piedmont scarps on the bajada. Those scarps are the same fault system, stepped into the basin. Sum their throws, and sum their heaves. An antithetic scarp faces the other way, so its throw and heave count negative.</p>
+    <ol>
+      <li>Jump to a site, or click a Quaternary fault and choose <em>Profile perpendicular to this fault here</em>. You can also click the footwall, then the hanging wall, yourself.</li>
+      <li>On the plot, mark the upper surface, the lower surface, and the scarp face. Each mark is two clicks. The tool fits a straight line through the elevations in between.</li>
+      <li>Throw is the vertical gap between the upper and lower lines at the middle of the scarp. Set the dip. Heave and net slip update immediately.</li>
+      <li>Repeat for each linked scarp. Leave checked the rows that belong to one fault system. The totals row sums them.</li>
+      <li>Export a CSV or GeoJSON before you close the laptop. The browser also keeps this session on this computer.</li>
+    </ol>
+  </div>
+</details>
+
+<div class="toolbar">
+  <div class="presets" role="group" aria-label="Demo sites">
+    <button type="button" data-lat="40.770" data-lng="-111.820" data-zoom="14">Wasatch, Salt Lake</button>
+    <button type="button" data-lat="44.200" data-lng="-113.910" data-zoom="14">Lost River, Borah Peak</button>
+    <button type="button" data-lat="44.835" data-lng="-111.210" data-zoom="14">Hebgen / Madison</button>
+    <button type="button" data-lat="45.720" data-lng="-110.990" data-zoom="14">Bridger Range, Bozeman</button>
+  </div>
+  <form id="search-form" class="search" role="search">
+    <label class="sr" for="search-q">Place or latitude, longitude</label>
+    <input id="search-q" type="search" placeholder="Place, or lat, lon" autocomplete="off">
+    <button type="submit">Go</button>
+  </form>
+  <label>Basemap
+    <select id="basemap">
+      <option value="hill">USGS 3DEP hillshade</option>
+      <option value="multi">3DEP multidirectional hillshade</option>
+      <option value="shade">USGS shaded relief</option>
+      <option value="imagery">Satellite</option>
+      <option value="topo">USGS topo</option>
+    </select>
+  </label>
+  <label>Spacing
+    <select id="spacing" title="Distance between elevation samples">
+      <option value="1">1 m</option>
+      <option value="2" selected>2 m</option>
+      <option value="5">5 m</option>
+      <option value="10">10 m</option>
+      <option value="20">20 m</option>
+    </select>
+  </label>
+  <label>Profile length
+    <input id="length" type="number" min="40" max="20000" step="10" value="600"> m
+  </label>
+  <label>Next scarp
+    <input id="group-name" type="text" value="Range front" maxlength="80">
+  </label>
+</div>
+
+<div class="modes" role="radiogroup" aria-label="How to draw a profile">
+  <button type="button" id="mode-fault" aria-pressed="true">Click a Quaternary fault</button>
+  <button type="button" id="mode-profile" aria-pressed="false">Two clicks: footwall, then hanging wall</button>
+  <button type="button" id="mode-strike" aria-pressed="false">Strike line, then down-dip profile</button>
+  <label id="hw-side-label" hidden>Hanging wall is
+    <select id="hw-side">
+      <option value="left" selected>left of the strike line</option>
+      <option value="right">right of the strike line</option>
+    </select>
+  </label>
+  <button type="button" id="cancel-draft" hidden>Cancel point</button>
+  <label class="check"><input id="qfault-toggle" type="checkbox" checked> Quaternary faults</label>
+</div>
+<p id="fault-note" class="note">Loading the USGS Quaternary Fault and Fold Database…</p>
+<p id="status" class="status" role="status">Click a colored fault, then profile perpendicular to it. Or draw a profile from the footwall to the hanging wall.</p>
+<div id="progress" hidden>
+  <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
+  <span id="progress-label">Sampling elevations…</span>
+  <button type="button" id="cancel-sample">Cancel</button>
+</div>
+
+<div class="workspace">
+  <div id="map-wrap">
+    <div id="map"></div>
+    <ul id="legend" aria-label="Fault age colors">
+      <li><i style="background:#9b2226"></i> historic</li>
+      <li><i style="background:#e85d04"></i> Holocene</li>
+      <li><i style="background:#ee9b00"></i> Pleistocene</li>
+      <li><i style="background:#bb3e03"></i> late Quaternary</li>
+      <li><i style="background:#0a9396"></i> middle Quaternary</li>
+      <li><i style="background:#ae2012"></i> undifferentiated</li>
+    </ul>
+  </div>
+  <aside id="side" aria-label="Profile measurement">
+    <h2 id="measuring">Profile</h2>
+    <p id="method-note" class="note"></p>
+    <div id="chart-box">
+      <canvas id="chart"></canvas>
+      <p id="chart-empty">The elevation profile will show up here after you draw a line.</p>
+    </div>
+    <div class="ve-row">
+      <label for="ve">Vertical exaggeration</label>
+      <input id="ve" type="range" min="1" max="15" step="0.5" value="4">
+      <span id="ve-label">4×</span>
+    </div>
+    <div class="picks" role="group" aria-label="Fit a segment of the profile">
+      <button type="button" id="pick-upper" data-pick="upper">Upper surface</button>
+      <button type="button" id="pick-lower" data-pick="lower">Lower surface</button>
+      <button type="button" id="pick-face" data-pick="face">Scarp face</button>
+      <button type="button" id="clear-fits">Clear fits</button>
+    </div>
+    <p id="pick-hint" class="note">Click Upper, Lower, or Scarp face, then click the two ends of that stretch on the plot.</p>
+    <div class="metrics" id="metrics">
+      <div><span>Throw</span><strong id="m-throw">—</strong></div>
+      <div><span>Heave</span><strong id="m-heave">—</strong></div>
+      <div><span>Net slip</span><strong id="m-slip">—</strong></div>
+      <div><span>Scarp height</span><strong id="m-height">—</strong></div>
+      <div><span>Face slope</span><strong id="m-face">—</strong></div>
+      <div><span>Far-field slope</span><strong id="m-far">—</strong></div>
+    </div>
+    <p id="metric-note" class="note"></p>
+    <div class="form-grid">
+      <label>Dip (°)
+        <input id="dip" type="number" min="1" max="89" step="1" value="60">
+      </label>
+      <label class="check"><input id="antithetic" type="checkbox"> Antithetic (subtract)</label>
+      <label class="check"><input id="include" type="checkbox" checked> Include in total</label>
+      <button type="button" id="swap-ends">Swap ends</button>
+      <button type="button" id="retry-elev">Reload elevations</button>
+    </div>
+    <label class="notes-label">Notes
+      <textarea id="notes" rows="2" maxlength="500" placeholder="Optional"></textarea>
+    </label>
+  </aside>
+</div>
+
+<section class="table-wrap" aria-labelledby="table-heading">
+  <div class="table-head">
+    <h2 id="table-heading">Measured scarps</h2>
+    <div class="row">
+      <button type="button" id="export-csv">Export CSV</button>
+      <button type="button" id="export-geojson">Export GeoJSON</button>
+      <label class="file">Import GeoJSON
+        <input id="import-file" type="file" accept="application/geo+json,application/json,.geojson,.json">
+      </label>
+      <label class="check"><input id="import-replace" type="checkbox"> Replace on import</label>
+      <button type="button" id="clear-all" class="danger">Clear measurements</button>
+    </div>
+  </div>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>In total</th>
+          <th>Antithetic</th>
+          <th>Scarp</th>
+          <th>Length (m)</th>
+          <th>Throw (m)</th>
+          <th>Heave (m)</th>
+          <th>Dip (°)</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+      <tfoot>
+        <tr>
+          <th colspan="4" id="total-label">Total of linked scarps</th>
+          <th id="total-throw">—</th>
+          <th id="total-heave">—</th>
+          <th colspan="3" id="total-note"></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+<footer>
+  Elevations and hillshade: USGS 3DEP. Fault lines: USGS Quaternary Fault and Fold Database.
+  Measurements stay in this browser until you clear them. Andrew K. Laskowski, Montana State University.
+</footer>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script src="logic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
