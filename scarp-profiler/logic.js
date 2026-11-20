@@ -147,25 +147,70 @@
     };
   }
 
-  /* Drop raw elevation samples onto the straight profile and sort by distance. */
-  function projectSamples(raw, start, end) {
-    var line = haversine(start, end);
-    var mLng = mPerDegLng(start.lat);
-    var ex = (end.lng - start.lng) * mLng;
-    var ey = (end.lat - start.lat) * M_PER_DEG_LAT;
-    var elen = Math.hypot(ex, ey) || 1;
-    var ux = ex / elen;
-    var uy = ey / elen;
+  function pathLength(vertices) {
+    var d = 0;
+    for (var i = 1; i < vertices.length; i++) d += haversine(vertices[i - 1], vertices[i]);
+    return d;
+  }
+
+  /* Drawn vertices, or the stored start and end when an older profile has none. */
+  function verticesOf(profile) {
+    if (profile && profile.vertices && profile.vertices.length >= 2) {
+      return profile.vertices.map(function (v) { return { lat: v.lat, lng: v.lng }; });
+    }
+    if (profile && profile.start && profile.end) {
+      return [
+        { lat: profile.start.lat, lng: profile.start.lng },
+        { lat: profile.end.lat, lng: profile.end.lng }
+      ];
+    }
+    return [];
+  }
+
+  function pointAtDistance(vertices, dist) {
+    var walked = 0;
+    for (var i = 1; i < vertices.length; i++) {
+      var len = haversine(vertices[i - 1], vertices[i]);
+      if (walked + len >= dist || i === vertices.length - 1) {
+        var along = len > 0 ? (dist - walked) / len : 0;
+        if (along < 0) along = 0;
+        if (along > 1) along = 1;
+        return destination(vertices[i - 1], bearing(vertices[i - 1], vertices[i]), along * len);
+      }
+      walked += len;
+    }
+    var last = vertices[vertices.length - 1];
+    return { lat: last.lat, lng: last.lng };
+  }
+
+  /* Drop elevation samples onto the profile path. Distance is chainage from the first vertex. */
+  function projectSamples(raw, vertices) {
+    if (!vertices || vertices.length < 2) return [];
+    var segs = [];
+    var cum = 0;
+    for (var i = 1; i < vertices.length; i++) {
+      var len = haversine(vertices[i - 1], vertices[i]);
+      segs.push({ a: vertices[i - 1], b: vertices[i], d0: cum, len: len });
+      cum += len;
+    }
+    var total = cum;
     var out = [];
-    for (var i = 0; i < raw.length; i++) {
-      var p = raw[i];
+    for (var r = 0; r < raw.length; r++) {
+      var p = raw[r];
       if (!isFinite(p.z) || p.z < -200 || p.z > 9000) continue;
-      var x = (p.lng - start.lng) * mLng;
-      var y = (p.lat - start.lat) * M_PER_DEG_LAT;
-      var d = x * ux + y * uy;
-      if (d < -30 || d > line + 30) continue;
+      var best = null;
+      for (var s = 0; s < segs.length; s++) {
+        var seg = segs[s];
+        if (seg.len < 0.05) continue;
+        var proj = projectPointToSegment(p, seg.a, seg.b);
+        if (!best || proj.dist < best.dist) {
+          best = { dist: proj.dist, d: seg.d0 + seg.len * proj.t };
+        }
+      }
+      if (!best || best.dist > 40) continue;
+      var d = best.d;
       if (d < 0) d = 0;
-      if (d > line) d = line;
+      if (d > total) d = total;
       out.push({
         lat: p.lat,
         lng: p.lng,
@@ -393,10 +438,13 @@
 
   function swapEnds(profile) {
     var samples = profile.samples || [];
-    var L = samples.length ? samples[samples.length - 1].d : (profile.lengthM || 0);
-    var start = profile.start;
-    profile.start = profile.end;
-    profile.end = start;
+    var verts = verticesOf(profile);
+    verts.reverse();
+    profile.vertices = verts;
+    profile.start = { lat: verts[0].lat, lng: verts[0].lng };
+    profile.end = { lat: verts[verts.length - 1].lat, lng: verts[verts.length - 1].lng };
+    profile.lengthM = pathLength(verts);
+    var L = samples.length ? samples[samples.length - 1].d : profile.lengthM;
     var flipped = [];
     for (var i = 0; i < samples.length; i++) {
       var s = samples[i];
@@ -450,10 +498,7 @@
       },
       geometry: {
         type: 'LineString',
-        coordinates: [
-          [profile.start.lng, profile.start.lat],
-          [profile.end.lng, profile.end.lat]
-        ]
+        coordinates: verticesOf(profile).map(function (v) { return [v.lng, v.lat]; })
       }
     };
   }
@@ -479,9 +524,14 @@
       var coords = ft.geometry.coordinates || [];
       if (coords.length < 2) return;
       var props = ft.properties || {};
-      var start = { lng: coords[0][0], lat: coords[0][1] };
-      var end = { lng: coords[coords.length - 1][0], lat: coords[coords.length - 1][1] };
-      if (!isFinite(start.lat) || !isFinite(end.lat)) return;
+      var vertices = [];
+      coords.forEach(function (c) {
+        if (!c || !isFinite(c[0]) || !isFinite(c[1])) return;
+        vertices.push({ lng: c[0], lat: c[1] });
+      });
+      if (vertices.length < 2) return;
+      var start = vertices[0];
+      var end = vertices[vertices.length - 1];
       var samples = [];
       (props.samples || []).forEach(function (s) {
         if (!s || !isFinite(Number(s.d)) || !isFinite(Number(s.z))) return;
@@ -519,12 +569,13 @@
         include: props.include !== false,
         dip: num(props.dip_deg, 60),
         spacing: num(props.spacing_m, 2),
-        lengthM: num(props.length_m, haversine(start, end)),
+        lengthM: num(props.length_m, pathLength(vertices)),
         elevationSource: props.elevation_source || '',
         fault: fault,
         method: props.method || 'import',
         fits: fits,
         samples: samples,
+        vertices: vertices,
         start: start,
         end: end,
         needsSample: samples.length < 2
@@ -621,16 +672,17 @@
     return lines.join('\n') + '\n';
   }
 
-  function pointsAlong(start, end, spacingM) {
-    var dist = haversine(start, end);
+  function pointsAlong(vertices, spacingM) {
+    if (!vertices || vertices.length < 2) return [];
+    var total = pathLength(vertices);
+    if (total < 1) return [];
     var spacing = Math.max(1, spacingM || 2);
-    var n = Math.max(2, Math.round(dist / spacing) + 1);
+    var n = Math.max(2, Math.round(total / spacing) + 1);
     if (n > 400) n = 400;
-    var brg = bearing(start, end);
     var pts = [];
     for (var i = 0; i < n; i++) {
-      var d = dist * (i / (n - 1));
-      var p = destination(start, brg, d);
+      var d = total * (i / (n - 1));
+      var p = pointAtDistance(vertices, d);
       p.d = d;
       pts.push(p);
     }
@@ -648,6 +700,9 @@
     chooseHangingBearing: chooseHangingBearing,
     sideBearing: sideBearing,
     perpendicularProfile: perpendicularProfile,
+    pathLength: pathLength,
+    verticesOf: verticesOf,
+    pointAtDistance: pointAtDistance,
     projectSamples: projectSamples,
     downsample: downsample,
     resolutionNote: resolutionNote,
